@@ -28,13 +28,33 @@ Install dependencies from the root folder of your project by running `npm i`
 inside the app folder there is a file called page.tsx
 This has all the code that is rendered in the boilerplate
 
-Remove that code and keep a div or fragment for nowInstall and setup Clerk
+Remove that code and keep a div or fragment for now
 
-## Create a git repo and push up your code
+## Initalize git and push up your code Github
+
+```
+echo "# hi" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/AlexVCS/hi.git
+git push -u origin main
+```
 
 ## Deploy your project on Vercel (make an account if you don't have one)
 
+On your Vercel dashboard, go to Add new and select project.
+
+From there you can import your Git repository and just remember to update your environment variables on Vercel too!
+
 ## Make an account on clerk.com
+
+Once created, click add application from your Clerk dashboard.
+
+Type in your application name. Our login will allow you to authenticate with email, Google, or Github, select those (and others) services if you'd like.
+
+## Setup Clerk in your project
 Run this command in your terminal
 `npm install @clerk/nextjs`
 
@@ -50,6 +70,7 @@ Wrap your app in the <ClerkProvider>
 Under app/page.tsx we will wrap our app in the provider.
 
 ``` javascript
+// app/page.tsx
 ...{
   return (
     <ClerkProvider>
@@ -74,20 +95,35 @@ From the terminal, at the root of your project run:
 Open middleware.ts. For this project we'll allow access to users but also have authentication
 
 ``` javascript
-...{
-    export default authMiddleware({
-  publicRoutes: ['/'],
-})
- 
+// middleware.ts
+import {authMiddleware} from "@clerk/nextjs";
+
+// This example protects all routes including api/trpc routes
+// Please edit this to allow other routes to be public as needed.
+// See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your Middleware
+export default authMiddleware({
+//   publicRoutes: ["/"],
+});
+
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };
-}
+
 ```
+
+### Now you should be rendering out of the box Clerk auth components
+
+Open your app locally by running this command
+`npm run dev`
+
+You should see a login page that looks like this:
+
+
+![The San Juan Mountains are beautiful!](/public/screenshots/boilerplateLogin.png "Clerk Boilerplate UI")
 
 Next we want to route users to sign-up and sign-in components we create.
 
-Create a sign-up component
+## Create a sign-up component
 
 Inside your app folder, create a new folder called sign-up
 
@@ -110,7 +146,7 @@ In that page.tsx, create your sign-up component
 
 ```
 
-Create a sign-in component
+## Create a sign-in component
 
 Now we will run the same steps for our sign-in component
 
@@ -126,9 +162,72 @@ Within that sign-in folder, create another folder
 Inside the new [[...sign-in]] folder, create a page.tsx file
 `touch page.tsx`
 
+Clerk has documentation about creating custom flows for sign-up and sign-in. [Be sure to check it out](https://clerk.com/docs/custom-flows/overview#custom-flows) as it helped us implement these components!
+
 In that page.tsx, create your sign-in component
 
 ```javascript
 
 
+```
+
+## Test your signup component
+
+Add these environment variables to your .env.local:
+```
+// .env.local
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+```
+
+This will route the pages to the custom components. Do this on Vercel or wherever your app is deployed too. If you're running your project locally be sure to **stop** the local server and restart it again.
+
+Wherever your have the project running locally, stop and restart the server.
+
+Run this to stop the server:
+
+Mac:
+`cmd + c`
+
+Windows:
+`control + c`
+
+Restart it with this command:
+`npm run dev`
+
+In your middleware file, bring back the line in the authMiddleware function (it's on line 7). Your file will now look like this:
+
+```javascript
+// middelware.ts
+...
+export default authMiddleware({
+  publicRoutes: ["/"],
+});
+...
+```
+
+Go back to the page.tsx file you removed the Next boilerplate from initially.
+
+The file should now look like this:
+
+```javascript
+// app/page.tsx
+import { UserButton } from '@clerk/nextjs'
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <div>
+      <h1>Hello!</h1>
+      <div className="bg-red-500 text-white text-center w-14 h-7 mr-4 rounded-md md:h-8 md:mr-6 lg:mr-0 lg:mb-8 flex align-center justify-center">
+        <Link href="/sign-up" className="self-center">
+          Signup
+        </Link>
+      </div>
+      <UserButton />
+    </div>
+  );
+}
 ```
