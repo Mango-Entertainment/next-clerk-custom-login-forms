@@ -1,5 +1,7 @@
 # Nextjs with your own login forms using Clerk
 
+---
+
 ## Setup a new project
 Create a new project in the terminal with nextjs
 Run this command: `npx create-next-app@latest`
@@ -121,7 +123,25 @@ You should see a login page that looks like this:
 
 ![The San Juan Mountains are beautiful!](/public/screenshots/boilerplateLogin.png "Clerk Boilerplate UI")
 
+---
+
 Next we want to route users to sign-up and sign-in components we create.
+
+## Setup components folder
+
+Inside the app folder, create a new folder for components.
+
+Run this terminal command from the root of the project:
+```bash
+cd app
+mkdir components
+```
+
+Inside the components folder, create three components:
+```bash
+cd components
+touch SignupForm.tsx SigninForm.tsx VerifyForm.tsx
+```
 
 ## Create a sign-up component
 
@@ -142,9 +162,209 @@ Inside the new [[...sign-up]] folder, create a page.tsx file
 In that page.tsx, create your sign-up component
 
 ```javascript
+"use client";
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSignUp } from "@clerk/nextjs";
+import SignupForm from "@/app/components/SignupForm";
+import VerifyForm from "@/app/components/VerifyForm";
 
+const Signup = () => {
+  const {isLoaded, signUp, setActive} = useSignUp();
+  const [clerkError, setClerkError] = useState("");
+  const router = useRouter();
+  const [verifying, setVerifying] = useState(false);
+  const [code, setCode] = useState("");
+
+  const signUpWithEmail = async ({
+    emailAddress,
+    password,
+  }: {
+    emailAddress: string;
+    password: string;
+  }) => {
+    if (!isLoaded) {
+      return;
+    }
+
+    try {
+      await signUp.create({
+        emailAddress,
+        password,
+      });
+      // send the email.
+      await signUp.prepareEmailAddressVerification({strategy: "email_code"});
+
+      // change the UI to our pending section.
+      setVerifying(true);
+    } catch (err: any) {
+      setClerkError(err.errors[0].message);
+    }
+  };
+
+  const handleVerify = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+
+    try {
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code,
+      });
+      if (completeSignUp.status !== "complete") {
+        console.log(JSON.stringify(completeSignUp, null, 2));
+      }
+
+      if (completeSignUp.status === "complete") {
+        await setActive({session: completeSignUp.createdSessionId});
+        router.push("/");
+      }
+    } catch (err) {
+      console.log("Error:", JSON.stringify(err, null, 2));
+    }
+  };
+
+  return (
+    <>
+      {!verifying ? 
+        (<SignupForm signUpWithEmail={signUpWithEmail} clerkError={clerkError} />) : 
+        (<VerifyForm handleVerify={handleVerify} code={code} setCode={setCode} />)
+      }
+    </>
+  )
+      
+};
+
+export default Signup;
 
 ```
+
+Now we'll create SignupForm.tsx, VerifyForm.tsx, and SigninForm.tsx.
+
+## Create the SignupForm
+
+Head back to the components folder and the SignupForm.tsx file.
+
+The code will be as follows:
+
+```javascript
+import Link from "next/link";
+
+interface SignUpFormProps {
+  signUpWithEmail: ({emailAddress, password }:{emailAddress: string, password: string}) => void
+  clerkError: string
+}
+
+const SignupForm = ({signUpWithEmail, clerkError}: SignUpFormProps) => {
+  return (
+    <div className="justify-center mt-12 grid justify-items-center md:mt-20">
+      <div className="h-auto bg-entertainment-semi-dark-blue rounded-xl md:rounded-3xl w-80 md:w-96">
+        <div className="p-6 md:p-8">
+          <h1 className="mb-6 text-3xl font-light text-entertainment-pure-white">
+            Sign Up
+          </h1>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const target = e.target as typeof e.target & {
+                email: {value: string};
+                password: {value: string};
+              };
+              const email = target.email.value;
+              const password = target.password.value;
+              signUpWithEmail({emailAddress: email, password: password});
+            }}
+          >
+            <input
+              name="email"
+              className="block w-full pb-4 pl-4 mb-3 text-sm font-light bg-transparent border-0 border-b-2 h-37 border-entertainment-greyish-blue text-entertainment-pure-white caret-entertainment-red focus:border-entertainment-pure-white"
+              placeholder="Email address"
+              type="email"
+              required
+            />
+            <input
+              name="password"
+              className="block w-full pb-4 pl-4 mb-3 text-sm font-light bg-transparent border-0 border-b-2 h-37 border-entertainment-greyish-blue text-entertainment-pure-white caret-entertainment-red focus:border-entertainment-pure-white"
+              placeholder="Password"
+              type="password"
+              required
+            />
+            <h2 className="text-entertainment-red mb-8">
+              {clerkError && <p>{clerkError}</p>}
+            </h2>
+            <button
+              className="w-full h-12 mb-6 text-sm font-light text-entertainment-pure-white hover:text-entertainment-dark-blue hover:bg-entertainment-pure-white bg-entertainment-red rounded-md"
+              type="submit"
+            >
+              Create an account
+            </button>
+          </form>
+          <p className="text-sm font-light text-center text-entertainment-pure-white">
+            Already have an acccount?
+            <Link className="ml-2 text-entertainment-red" href="/sign-in">
+              Login
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SignupForm
+```
+
+## Create the VerifyForm
+
+Clerk has users the signup with email and password enter a verficiation code from their email.
+
+Here's the code for the VerifyForm:
+
+```javascript
+import { FormEvent } from "react"
+
+interface VerifyFormProps {
+    handleVerify: (e: FormEvent) => void
+    code: string
+    setCode: (value: string) => void
+}
+
+const VerifyForm = ({handleVerify, code, setCode}: VerifyFormProps) => {
+  return (
+    <div className="flex justify-center mt-12 grid justify-items-center md:mt-20">
+      <div className="h-auto bg-entertainment-semi-dark-blue rounded-xl md:rounded-3xl w-80 md:w-96">
+        <div className="p-6 md:p-8">
+          <h1 className="mb-6 text-3xl font-light text-entertainment-pure-white">
+            Verification Code
+          </h1>
+          <form onSubmit={handleVerify}>
+            <input
+              value={code}
+              className="block w-full pb-4 pl-4 mb-3 text-sm font-light bg-transparent border-0 border-b-2 h-37 border-entertainment-greyish-blue text-entertainment-pure-white caret-entertainment-red focus:border-entertainment-pure-white"
+              id="code"
+              name="code"
+              onChange={(e) => setCode(e.target.value)}
+            />
+
+            <button
+              className="w-full h-12 mb-6 text-sm font-light text-entertainment-pure-white hover:text-entertainment-dark-blue hover:bg-entertainment-pure-white bg-entertainment-red rounded-md"
+              type="submit"
+            >
+              Complete sign up
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default VerifyForm
+``` 
+
+## Create the SigninForm
+
+
 
 ## Create a sign-in component
 
@@ -214,20 +434,5 @@ The file should now look like this:
 
 ```javascript
 // app/page.tsx
-import { UserButton } from '@clerk/nextjs'
-import Link from 'next/link'
-
-export default function Home() {
-  return (
-    <div>
-      <h1>Hello!</h1>
-      <div className="bg-red-500 text-white text-center w-14 h-7 mr-4 rounded-md md:h-8 md:mr-6 lg:mr-0 lg:mb-8 flex align-center justify-center">
-        <Link href="/sign-up" className="self-center">
-          Signup
-        </Link>
-      </div>
-      <UserButton />
-    </div>
-  );
-}
 ```
+
